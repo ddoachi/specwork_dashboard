@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { ClientOnly } from "@/app/components/client-only";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { StatsCard } from "@/app/components/dashboard/stats-card";
@@ -168,6 +169,18 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <ClientOnly fallback={
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <LoadingCard />
+                <LoadingCard />
+                <LoadingCard />
+                <LoadingCard />
+              </div>
+            </div>
+          </div>
+        }>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Stats Cards */}
@@ -209,7 +222,10 @@ export default function Dashboard() {
                   />
                   <StatsCard
                     title="Progress"
-                    value={`${Math.round((stats.summary.completed / (stats.summary.epics + stats.summary.features + stats.summary.tasks)) * 100)}%`}
+                    value={(() => {
+                      const total = stats.summary.epics + stats.summary.features + stats.summary.tasks;
+                      return total > 0 ? `${Math.round((stats.summary.completed / total) * 100)}%` : '0%';
+                    })()}
                     color="amber"
                     icon={<TrendingUp className="h-4 w-4" />}
                   />
@@ -253,6 +269,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        </ClientOnly>
       </div>
     </div>
   );

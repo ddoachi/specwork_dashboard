@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { Button } from "@/app/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/app/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Folder, FileText, CheckCircle2, Circle, AlertCircle, Clock } from "lucide-react";
-import { SpecHierarchy } from "@/app/lib/types";
+import { SpecHierarchy, SpecType, SpecStatus } from "@/app/lib/types";
 import { getStatusColor, cn } from "@/app/lib/utils";
 
 interface TreeNodeProps {
@@ -15,13 +15,13 @@ interface TreeNodeProps {
   onToggle: (id: string) => void;
 }
 
-const typeIcons = {
+const typeIcons: Record<SpecType, React.ComponentType<{ className?: string }>> = {
   epic: Folder,
   feature: FileText,
   task: Circle,
 };
 
-const statusIcons = {
+const statusIcons: Record<SpecStatus, React.ComponentType<{ className?: string }>> = {
   completed: CheckCircle2,
   in_progress: Clock,
   blocked: AlertCircle,
@@ -32,8 +32,8 @@ const statusIcons = {
 function TreeNode({ node, level, expanded, onToggle }: TreeNodeProps) {
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expanded.has(node.id);
-  const TypeIcon = typeIcons[node.type];
-  const StatusIcon = statusIcons[node.status];
+  const TypeIcon = typeIcons[node.type] || Circle;
+  const StatusIcon = statusIcons[node.status] || Circle;
   
   const indentClass = level === 0 ? '' : `ml-${Math.min(level * 4, 16)}`;
   
