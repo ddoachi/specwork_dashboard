@@ -5,30 +5,7 @@ import { Epic } from '../specs/epic.entity';
 import { Feature } from '../specs/feature.entity';
 import { Task } from '../specs/task.entity';
 
-export interface DashboardStats {
-  summary: {
-    epics: number;
-    features: number;
-    tasks: number;
-    completed: number;
-    inProgress: number;
-    blocked: number;
-  };
-  progressByEpic: Record<string, {
-    total: number;
-    completed: number;
-    percentage: number;
-  }>;
-}
-
-export interface SpecTreeNode {
-  id: string;
-  title: string;
-  type: 'epic' | 'feature' | 'task';
-  status: string;
-  progress?: number;
-  children?: SpecTreeNode[];
-}
+import { DashboardStatsDto, SpecTreeNodeDto, EpicProgressResponseDto, RecentActivityResponseDto, EpicProgressItemDto, RecentActivityItemDto } from './dto/dashboard.dto';
 
 @Injectable()
 export class DashboardService {
@@ -41,7 +18,7 @@ export class DashboardService {
     private taskRepository: Repository<Task>,
   ) {}
 
-  async getDashboardStats(): Promise<DashboardStats> {
+  async getDashboardStats(): Promise<DashboardStatsDto> {
     // Get counts by type
     const epicCount = await this.epicRepository.count();
     const featureCount = await this.featureRepository.count();
@@ -100,12 +77,12 @@ export class DashboardService {
     };
   }
 
-  async getSpecTree(): Promise<SpecTreeNode[]> {
+  async getSpecTree(): Promise<SpecTreeNodeDto[]> {
     const epics = await this.epicRepository.find({
       order: { epic_code: 'ASC' }
     });
 
-    const treeNodes: SpecTreeNode[] = [];
+    const treeNodes: SpecTreeNodeDto[] = [];
 
     for (const epic of epics) {
       const epicFeatures = await this.featureRepository.find({
@@ -113,7 +90,7 @@ export class DashboardService {
         order: { feature_code: 'ASC' }
       });
 
-      const featureNodes: SpecTreeNode[] = [];
+      const featureNodes: SpecTreeNodeDto[] = [];
 
       for (const feature of epicFeatures) {
         const featureTasks = await this.taskRepository.find({
@@ -121,7 +98,7 @@ export class DashboardService {
           order: { task_code: 'ASC' }
         });
 
-        const taskNodes: SpecTreeNode[] = featureTasks.map(task => ({
+        const taskNodes: SpecTreeNodeDto[] = featureTasks.map(task => ({
           id: task.task_code,
           title: task.title,
           type: 'task' as const,
@@ -162,5 +139,64 @@ export class DashboardService {
     }
 
     return treeNodes;
+  }
+
+  async getEpicProgress(): Promise<EpicProgressResponseDto> {
+    const epics = await this.epicRepository.find({
+      order: { epic_code: 'ASC' }
+    });
+
+    const epicProgress: EpicProgressItemDto[] = [];
+
+    for (const epic of epics) {
+      const allTasks = await this.taskRepository.find({
+        where: { epic_code: epic.epic_code }
+      });
+      const totalTasks = allTasks.length;
+      const completedTasks = allTasks.filter(t => t.status === 'done').length;
+      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      epicProgress.push({
+        epicId: epic.epic_code,
+        title: epic.title,
+        status: epic.status,
+        progress,
+        tasks: {
+          completed: completedTasks,
+          total: totalTasks
+        }
+      });
+    }
+
+    return { data: epicProgress };
+  }
+
+  async getRecentActivity(): Promise<RecentActivityResponseDto> {
+    // Mock data for now - in a real app you'd track activity logs
+    const activities: RecentActivityItemDto[] = [
+      {
+        id: '1',
+        action: 'completed' as const,
+        specId: 'T1025',
+        specTitle: 'Design system foundation',
+        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30 min ago
+      },
+      {
+        id: '2', 
+        action: 'updated' as const,
+        specId: 'F1002',
+        specTitle: 'User authentication system',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString() // 1 hour ago
+      },
+      {
+        id: '3',
+        action: 'created' as const, 
+        specId: 'T1026',
+        specTitle: 'API endpoint implementation',
+        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString() // 2 hours ago
+      }
+    ];
+
+    return { data: activities };
   }
 }

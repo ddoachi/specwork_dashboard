@@ -5,6 +5,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable CORS for frontend access
+  app.enableCors({
+    origin: true, // Allow all origins in development
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+  
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Specwork Dashboard API')
@@ -20,6 +27,6 @@ async function bootstrap() {
   console.log('DATABASE_URL =', process.env.DATABASE_URL);
   console.log('Swagger UI available at: http://localhost:' + (process.env.PORT ?? 3000) + '/api');
   
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();

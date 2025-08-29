@@ -3,20 +3,46 @@ import {
   DashboardStats, 
   SpecHierarchy, 
   EpicProgress, 
-  RecentActivity,
-  DashboardStatsResponse,
-  SpecTreeResponse,
-  EpicProgressResponse,
-  RecentActivityResponse
+  RecentActivity
 } from './types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 10000,
 });
+
+// Add request interceptor for debugging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log(`API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    if (error.code === 'ECONNREFUSED') {
+      console.error('Connection refused - backend might not be running');
+    } else if (error.code === 'NETWORK_ERROR') {
+      console.error('Network error - check your connection');
+    } else {
+      console.error('API Error:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Original spec functions (keeping for compatibility)
 export async function fetchSpecs() {
@@ -33,27 +59,27 @@ export async function fetchSpec(id: string) {
 
 // Dashboard API functions
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const response = await api.get<DashboardStatsResponse>('/dashboard/stats');
-  return response.data.data;
+  const response = await api.get<DashboardStats>('/api/dashboard/stats');
+  return response.data;
 }
 
 export async function fetchSpecTree(): Promise<SpecHierarchy[]> {
-  const response = await api.get<SpecTreeResponse>('/specs/tree');
-  return response.data.data;
+  const response = await api.get<SpecHierarchy[]>('/api/specs/tree');
+  return response.data;
 }
 
 export async function fetchEpicProgress(): Promise<EpicProgress[]> {
-  const response = await api.get<EpicProgressResponse>('/dashboard/epic-progress');
+  const response = await api.get<{ data: EpicProgress[] }>('/api/dashboard/epic-progress');
   return response.data.data;
 }
 
 export async function fetchRecentActivity(): Promise<RecentActivity[]> {
-  const response = await api.get<RecentActivityResponse>('/dashboard/recent-activity');
+  const response = await api.get<{ data: RecentActivity[] }>('/api/dashboard/recent-activity');
   return response.data.data;
 }
 
 export async function syncSpecs(): Promise<{ message: string }> {
-  const response = await api.post('/specs/sync');
+  const response = await api.post('/api/specs/sync');
   return response.data;
 }
 
