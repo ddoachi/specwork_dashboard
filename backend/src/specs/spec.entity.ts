@@ -12,17 +12,17 @@ export class Spec {
   id!: string;
 
   @Column({ type: 'text' }) title!: string;
-  @Column({ type: 'enum', enum: ['epic','feature','task'] }) type!: SpecType;
+  @Column({ type: 'varchar', length: 20 }) type!: SpecType;
 
   @Column({ type: 'varchar', length: 32, nullable: true }) parent_id?: string | null;
   @Column({ type: 'varchar', length: 32, nullable: true }) epic_id?: string | null;
 
   @Column({ type: 'text', nullable: true }) domain?: string | null;
 
-  @Column({ type: 'enum', enum: ['draft','in_progress','done','blocked'], default: 'draft' })
+  @Column({ type: 'varchar', length: 20, default: 'draft' })
   status!: SpecStatus;
 
-  @Column({ type: 'enum', enum: ['low','medium','high','critical'], default: 'medium' })
+  @Column({ type: 'varchar', length: 20, default: 'medium' })
   priority!: SpecPriority;
 
   @Column({ type: 'date' }) created!: string;
@@ -34,9 +34,9 @@ export class Spec {
 
   @Column({ type: 'text', nullable: true }) context_file?: string | null;
 
-  @Column({ type: 'enum', enum: ['tiny','small','medium','large','xl'], nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   effort?: SpecEffort | null;
 
-  @Column({ type: 'enum', enum: ['low','medium','high'], nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   risk?: SpecRisk | null;
 }
