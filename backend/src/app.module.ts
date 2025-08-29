@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { SpecsModule } from './specs/specs.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { Epic } from './specs/epic.entity';
+import { Feature } from './specs/feature.entity';
+import { Task } from './specs/task.entity';
 
 @Module({
   imports: [
@@ -10,13 +13,13 @@ import { SpecsModule } from './specs/specs.module';
       envFilePath: '.env',
     }),
     TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-      autoLoadEntities: true,
-      synchronize: false, // 반드시 false (우린 SQL 마이그레이션 사용)
+      type: 'sqlite',
+      database: 'db/specs.sqlite',
+      entities: [Epic, Feature, Task],
+      synchronize: true, // Dev only - will create tables automatically
       logging: true,
     }),
-    SpecsModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

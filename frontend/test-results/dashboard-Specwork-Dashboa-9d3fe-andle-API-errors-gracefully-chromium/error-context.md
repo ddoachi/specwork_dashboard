@@ -1,0 +1,49 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e5]:
+      - generic:
+        - heading "Specwork Dashboard" [level=1]
+        - paragraph: Manage specifications and track project progress
+      - generic [ref=e6]:
+        - button "Refresh" [ref=e7]:
+          - img [ref=e8]
+          - text: Refresh
+        - button "Sync Specs" [ref=e13]:
+          - img [ref=e14]
+          - text: Sync Specs
+    - generic [ref=e20]:
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - img [ref=e27]
+          - paragraph: Error loading data
+        - paragraph: Failed to load dashboard statistics
+        - button "Try again" [ref=e29]
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - img [ref=e34]
+          - paragraph: Error loading data
+        - paragraph: Failed to load epic progress
+        - button "Try again" [ref=e36]
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - img [ref=e41]
+          - paragraph: Error loading data
+        - paragraph: Failed to load recent activity
+        - button "Try again" [ref=e43]
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - img [ref=e48]
+          - paragraph: Error loading data
+        - paragraph: Failed to load specification tree
+        - button "Try again" [ref=e50]
+  - generic [ref=e51]:
+    - img [ref=e53]
+    - button "Open Tanstack query devtools" [ref=e101] [cursor=pointer]:
+      - img [ref=e102] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e155] [cursor=pointer]:
+    - img [ref=e156] [cursor=pointer]
+  - alert [ref=e159]
+```
