@@ -2,8 +2,10 @@ import { Controller, Get, Post } from '@nestjs/common';
 // import { UseGuards } from '@nestjs/common';
 // import { BasicAuthGuard } from '../auth/basic-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { DashboardService, DashboardStats, SpecTreeNode } from './dashboard.service';
-import { SpecSyncService, SyncResult } from '../specs/spec-sync.service';
+import { DashboardService } from './dashboard.service';
+import { SpecSyncService } from '../specs/spec-sync.service';
+import { DashboardStatsDto, SpecTreeNodeDto, EpicProgressResponseDto, RecentActivityResponseDto } from './dto/dashboard.dto';
+import { SyncResultDto } from '../specs/dto/sync-result.dto';
 
 @ApiTags('dashboard')
 @Controller('api/dashboard')
@@ -19,10 +21,32 @@ export class DashboardController {
   @ApiResponse({ 
     status: 200, 
     description: 'Returns comprehensive dashboard statistics including epic progress',
-    type: 'object'
+    type: DashboardStatsDto
   })
-  async getStats(): Promise<DashboardStats> {
+  async getStats(): Promise<DashboardStatsDto> {
     return this.dashboardService.getDashboardStats();
+  }
+
+  @Get('epic-progress')
+  @ApiOperation({ summary: 'Get epic progress data' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Returns epic progress information',
+    type: EpicProgressResponseDto
+  })
+  async getEpicProgress(): Promise<EpicProgressResponseDto> {
+    return this.dashboardService.getEpicProgress();
+  }
+
+  @Get('recent-activity')
+  @ApiOperation({ summary: 'Get recent activity feed' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Returns recent activity data',
+    type: RecentActivityResponseDto
+  })
+  async getRecentActivity(): Promise<RecentActivityResponseDto> {
+    return this.dashboardService.getRecentActivity();
   }
 }
 
@@ -40,9 +64,9 @@ export class SpecsController {
   @ApiResponse({ 
     status: 200, 
     description: 'Returns hierarchical tree of epics, features, and tasks',
-    type: 'array'
+    type: [SpecTreeNodeDto]
   })
-  async getTree(): Promise<SpecTreeNode[]> {
+  async getTree(): Promise<SpecTreeNodeDto[]> {
     return this.dashboardService.getSpecTree();
   }
 
@@ -51,9 +75,9 @@ export class SpecsController {
   @ApiResponse({ 
     status: 200, 
     description: 'Synchronizes spec files from filesystem and returns sync results',
-    type: 'object'
+    type: SyncResultDto
   })
-  async syncSpecs(): Promise<SyncResult> {
+  async syncSpecs(): Promise<SyncResultDto> {
     return this.specSyncService.syncSpecs();
   }
 }

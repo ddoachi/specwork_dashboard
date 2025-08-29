@@ -1,4 +1,33 @@
 {
+  "name": "specwork-dashboard",
+  "version": "1.0.0",
+  "description": "Specwork dashboard with frontend and backend",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "yarn install && yarn workspace frontend install && yarn workspace backend install",
+    "dev": "concurrently \"yarn dev:backend\" \"yarn dev:frontend\"",
+    "dev:backend": "yarn workspace backend start:dev",
+    "dev:frontend": "yarn workspace frontend dev",
+    "build": "yarn build:backend && yarn build:frontend",
+    "build:backend": "yarn workspace backend build",
+    "build:frontend": "yarn workspace frontend build",
+    "start": "concurrently \"yarn start:backend\" \"yarn start:frontend\"",
+    "start:backend": "yarn workspace backend start:prod",
+    "start:frontend": "yarn workspace frontend start",
+    "test": "yarn test:backend && yarn test:frontend",
+    "test:backend": "yarn workspace backend test",
+    "test:frontend": "yarn workspace frontend test",
+    "lint": "yarn lint:backend && yarn lint:frontend",
+    "lint:backend": "yarn workspace backend lint",
+    "lint:frontend": "yarn workspace frontend lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
   "dependencies": {
     "nextjs": "^0.0.3"
   }
