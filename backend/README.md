@@ -57,6 +57,20 @@ $ yarn run test:e2e
 $ yarn run test:cov
 ```
 
+## Database Migrations
+
+This project includes a comprehensive database migration system for managing SQLite schema evolution.
+
+```bash
+# Run all pending migrations
+$ yarn migrate
+
+# Run using TypeScript directly
+$ yarn migrate:ts
+```
+
+For detailed migration usage, troubleshooting, and best practices, see [`MIGRATION_GUIDE.md`](./MIGRATION_GUIDE.md).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
