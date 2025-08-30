@@ -74,3 +74,4 @@ docker-compose.override.yml
 *.bak
 *.tmp
 *.orig
+specs/*

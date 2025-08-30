@@ -9,6 +9,7 @@ import { SpecTag } from './spec-tag.entity';
 import { SpecTagMap } from './spec-tag-map.entity';
 import { SpecRelation } from './spec-rel.entity';
 import { UpsertSpecDto } from './dto/upsert-spec.dto';
+import { BatchSyncDto } from './dto/batch-sync.dto';
 
 @Injectable()
 export class SpecsService {
@@ -121,5 +122,118 @@ export class SpecsService {
     const maps = await this.tagMaps.find({ where: { tag_id: tag.id } });
     const ids = new Set(maps.map(m => m.spec_id));
     return rows.filter(r => ids.has(r.id));
+  }
+
+  async batchSync(dto: BatchSyncDto) {
+    // Use a transaction for atomicity
+    const queryRunner = this.specs.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Get all existing spec IDs for comparison
+      const existingSpecs = await queryRunner.manager.find(Spec);
+      const existingIds = new Set(existingSpecs.map(s => s.id));
+      const incomingIds = new Set(Object.keys(dto.specs));
+
+      // Determine specs to delete (exist in DB but not in sync data)
+      const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
+      
+      // Delete removed specs
+      if (toDelete.length > 0) {
+        await queryRunner.manager.delete(Spec, toDelete);
+      }
+
+      // Process each spec from the sync data
+      for (const [specId, specData] of Object.entries(dto.specs)) {
+        // Prepare spec entity
+        const spec = {
+          id: specId,
+          title: specData.title,
+          type: specData.type as any,
+          parent_id: specData.parent || null,
+          epic_id: specData.type === 'epic' ? specId : 
+                   specData.type === 'feature' ? specData.parent : 
+                   null, // For tasks, need to find the epic
+          domain: null, // Can be extracted from spec metadata if needed
+          status: (specData.status || 'draft') as any,
+          priority: (specData.priority || 'medium') as any,
+          created: specData.created,
+          updated: specData.updated,
+          due_date: null,
+          estimated_hours: specData.estimated_hours || 0,
+          actual_hours: specData.actual_hours || 0,
+          context_file: null,
+          effort: null,
+          risk: null,
+        };
+
+        // For tasks, find the epic ID through the parent feature
+        if (specData.type === 'task' && specData.parent) {
+          const parentFeature = dto.specs[specData.parent];
+          if (parentFeature?.parent) {
+            spec.epic_id = parentFeature.parent;
+          }
+        }
+
+        // Upsert the spec
+        await queryRunner.manager.save(Spec, spec);
+
+        // Clear and re-insert related data
+        // Files
+        await queryRunner.manager.delete(SpecFile, { spec_id: specId });
+        
+        // Commits
+        await queryRunner.manager.delete(SpecCommit, { spec_id: specId });
+        if (specData.commits?.length) {
+          const commits = specData.commits.map(sha => ({
+            spec_id: specId,
+            sha
+          }));
+          await queryRunner.manager.save(SpecCommit, commits);
+        }
+
+        // Pull Requests
+        await queryRunner.manager.delete(SpecPR, { spec_id: specId });
+        if (specData.pull_requests?.length) {
+          const prs = specData.pull_requests.map(url => ({
+            spec_id: specId,
+            url
+          }));
+          await queryRunner.manager.save(SpecPR, prs);
+        }
+
+        // Relations - we'll handle children as "blocks" relations
+        await queryRunner.manager.delete(SpecRelation, { from_id: specId });
+        if (specData.children?.length) {
+          const relations = specData.children.map(childId => ({
+            from_id: specId,
+            to_id: childId,
+            rel_type: 'blocks' as const
+          }));
+          await queryRunner.manager.save(SpecRelation, relations);
+        }
+      }
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+
+      // Return sync summary
+      return {
+        success: true,
+        synced: incomingIds.size,
+        deleted: toDelete.length,
+        stats: dto.stats,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      // Rollback on error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release the query runner
+      await queryRunner.release();
+    }
   }
 }

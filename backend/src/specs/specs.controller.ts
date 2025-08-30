@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Headers } from '@nestjs/common';
 import { SpecsService } from './specs.service';
 import { UpsertSpecDto } from './dto/upsert-spec.dto';
+import { BatchSyncDto } from './dto/batch-sync.dto';
 
 @Controller('specs')
 export class SpecsController {
@@ -9,6 +10,16 @@ export class SpecsController {
   @Post('upsert')
   upsert(@Body() dto: UpsertSpecDto) {
     return this.service.upsert(dto);
+  }
+
+  @Post('batch-sync')
+  async batchSync(@Body() dto: BatchSyncDto, @Headers('authorization') auth?: string) {
+    // Simple API key check for GitHub Actions
+    const apiKey = auth?.replace('Bearer ', '');
+    if (process.env.NODE_ENV === 'production' && apiKey !== process.env.SYNC_API_KEY) {
+      throw new Error('Unauthorized');
+    }
+    return this.service.batchSync(dto);
   }
 
   @Get(':id')

@@ -1,0 +1,60 @@
+name: Sync Specs and Update Index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'specs/**/*.md'
+  workflow_dispatch: # Manual trigger option
+
+jobs:
+  sync-specs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Need to push index.md updates
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Parse all spec files
+        id: parse
+        run: |
+          npm run parse:specs
+          echo "specs_data=$(cat specs-data.json)" >> $GITHUB_OUTPUT
+          
+      - name: Update database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_URL: ${{ secrets.API_URL }}
+          SYNC_API_KEY: ${{ secrets.SYNC_API_KEY }}
+        run: |
+          npm run sync:database
+          
+      - name: Generate index.md
+        run: |
+          npm run generate:index
+          
+      - name: Commit index.md if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          if git diff --quiet specs/index.md; then
+            echo "No changes to index.md"
+          else
+            git add specs/index.md
+            git commit -m "Auto-update index.md with latest spec statistics [skip ci]"
+            git push
+          fi
