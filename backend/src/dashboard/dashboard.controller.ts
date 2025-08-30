@@ -1,11 +1,9 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 // import { UseGuards } from '@nestjs/common';
 // import { BasicAuthGuard } from '../auth/basic-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
-import { SpecSyncService } from '../specs/spec-sync.service';
 import { DashboardStatsDto, SpecTreeNodeDto, EpicProgressResponseDto, RecentActivityResponseDto } from './dto/dashboard.dto';
-import { SyncResultDto } from '../specs/dto/sync-result.dto';
 
 @ApiTags('dashboard')
 @Controller('api/dashboard')
@@ -13,7 +11,6 @@ import { SyncResultDto } from '../specs/dto/sync-result.dto';
 export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,
-    private readonly specSyncService: SpecSyncService,
   ) {}
 
   @Get('stats')
@@ -56,7 +53,6 @@ export class DashboardController {
 export class SpecsController {
   constructor(
     private readonly dashboardService: DashboardService,
-    private readonly specSyncService: SpecSyncService,
   ) {}
 
   @Get('tree')
@@ -68,16 +64,5 @@ export class SpecsController {
   })
   async getTree(): Promise<SpecTreeNodeDto[]> {
     return this.dashboardService.getSpecTree();
-  }
-
-  @Post('sync')
-  @ApiOperation({ summary: 'Sync specifications from filesystem' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Synchronizes spec files from filesystem and returns sync results',
-    type: SyncResultDto
-  })
-  async syncSpecs(): Promise<SyncResultDto> {
-    return this.specSyncService.syncSpecs();
   }
 }
