@@ -7,6 +7,7 @@
 - **Total Epics**: {{stats.total_epics}}
 - **Total Features**: {{stats.total_features}}
 - **Total Tasks**: {{stats.total_tasks}}
+- **Total Subtasks**: {{stats.total_subtasks}}
 - **Completed**: {{stats.completed.length}} 🔥
 - **In Progress**: {{stats.in_progress.length}}
 - **Overall Progress**: {{calculated.progressPercentage}}%
@@ -25,12 +26,19 @@ Completed: {{stats.completed.length}}/{{calculated.totalSpecs}}
 
 > Status: `{{status}}` | Priority: `{{priority}}`
 
-{{#if features}}
-{{#each features}}
+{{#if children}}
+{{#each children}}
 - {{statusIcon status}} [{{@key}} - {{title}}]({{../key}}/{{@key}}/spec.md) `{{status}}`
-  {{#each tasks}}
-  - {{statusIcon status}} [{{@key}} - {{title}}]({{../../key}}/{{../key}}/{{@key}}/spec.md)
-  {{/each}}
+{{#if children}}
+{{#each children}}
+  - {{statusIcon status}} [{{@key}} - {{title}}]({{../../key}}/{{../key}}/{{@key}}/spec.md) `{{status}}`
+{{#if children}}
+{{#each children}}
+    - {{statusIcon status}} [{{@key}} - {{title}}]({{../../../key}}/{{../../key}}/{{../key}}/{{@key}}/spec.md) `{{status}}`
+{{/each}}
+{{/if}}
+{{/each}}
+{{/if}}
 {{/each}}
 {{/if}}
 

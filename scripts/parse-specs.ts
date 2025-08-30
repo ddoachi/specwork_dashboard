@@ -6,7 +6,7 @@ import matter from 'gray-matter';
 interface SpecMetadata {
   id: string;
   title: string;
-  type: 'epic' | 'feature' | 'task';
+  type: 'epic' | 'feature' | 'task' | 'subtask';
   parent?: string;
   status: string;
   priority: string;
@@ -25,6 +25,7 @@ interface SpecData {
     total_epics: number;
     total_features: number;
     total_tasks: number;
+    total_subtasks: number;
     completed: string[];
     in_progress: string[];
     draft: string[];
@@ -64,30 +65,50 @@ async function parseAllSpecs(): Promise<SpecData> {
       commits: data.commits,
     };
     
-    // Build hierarchy
+    // Build hierarchy with unified children structure
     if (data.type === 'epic') {
       hierarchy[specId] = {
         ...specs[specId],
-        features: {}
+        children: {}
       };
     } else if (data.type === 'feature' && data.parent) {
       if (!hierarchy[data.parent]) {
         hierarchy[data.parent] = { 
           ...specs[data.parent],
-          features: {} 
+          children: {} 
         };
       }
-      hierarchy[data.parent].features[specId] = {
+      hierarchy[data.parent].children[specId] = {
         ...specs[specId],
-        tasks: {}
+        children: {}
       };
     } else if (data.type === 'task' && data.parent) {
       // Find parent feature in hierarchy
       for (const epicId in hierarchy) {
         const epic = hierarchy[epicId];
-        if (epic.features && epic.features[data.parent]) {
-          epic.features[data.parent].tasks[specId] = specs[specId];
+        if (epic.children && epic.children[data.parent]) {
+          epic.children[data.parent].children[specId] = {
+            ...specs[specId],
+            children: {}
+          };
           break;
+        }
+      }
+    } else if (data.type === 'subtask' && data.parent) {
+      // Find parent task in hierarchy
+      for (const epicId in hierarchy) {
+        const epic = hierarchy[epicId];
+        if (epic.children) {
+          for (const featureId in epic.children) {
+            const feature = epic.children[featureId];
+            if (feature.children && feature.children[data.parent]) {
+              feature.children[data.parent].children[specId] = {
+                ...specs[specId],
+                children: {}
+              };
+              break;
+            }
+          }
         }
       }
     }
@@ -98,8 +119,9 @@ async function parseAllSpecs(): Promise<SpecData> {
     total_epics: Object.values(specs).filter(s => s.type === 'epic').length,
     total_features: Object.values(specs).filter(s => s.type === 'feature').length,
     total_tasks: Object.values(specs).filter(s => s.type === 'task').length,
+    total_subtasks: Object.values(specs).filter(s => s.type === 'subtask').length,
     completed: Object.keys(specs).filter(id => specs[id].status === 'completed'),
-    in_progress: Object.keys(specs).filter(id => specs[id].status === 'in_progress' || specs[id].status === 'in_progress'),
+    in_progress: Object.keys(specs).filter(id => specs[id].status === 'in_progress' || specs[id].status === 'in-progress'),
     draft: Object.keys(specs).filter(id => specs[id].status === 'draft'),
     blocked: Object.keys(specs).filter(id => specs[id].status === 'blocked'),
   };
