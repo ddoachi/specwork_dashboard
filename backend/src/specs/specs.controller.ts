@@ -22,13 +22,13 @@ export class SpecsController {
     return this.service.batchSync(dto);
   }
 
-  @Get(':id')
-  getOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  @Get(':hierarchicalId')
+  getOne(@Param('hierarchicalId') hierarchicalId: string) {
+    return this.service.findOne(hierarchicalId);
   }
 
   @Get()
-  list(@Query('status') status?: string, @Query('type') type?: string, @Query('epic') epic?: string, @Query('tag') tag?: string) {
-    return this.service.list({ status, type, epic, tag });
+  list(@Query('status') status?: string, @Query('type') type?: string, @Query('epic') epic?: string, @Query('parent') parent?: string) {
+    return this.service.list({ status, type, epic, parent });
   }
 }
