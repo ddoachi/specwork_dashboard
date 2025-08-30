@@ -110,6 +110,11 @@ export class SpecsService {
 
       // Process each spec from the sync data
       for (const specData of Object.values(dto.specs)) {
+        // Check if spec already exists by hierarchical_id
+        const existingSpec = await queryRunner.manager.findOne(Spec, { 
+          where: { hierarchical_id: specData.hierarchical_id } 
+        });
+
         // Prepare spec entity
         const spec = {
           id: specData.id,
@@ -131,8 +136,13 @@ export class SpecsService {
           pull_requests: specData.pull_requests || [],
         };
 
-        // Upsert the spec
-        await queryRunner.manager.save(Spec, spec);
+        if (existingSpec) {
+          // Update existing record
+          await queryRunner.manager.update(Spec, { hierarchical_id: specData.hierarchical_id }, spec);
+        } else {
+          // Insert new record
+          await queryRunner.manager.insert(Spec, spec);
+        }
       }
 
       // Commit the transaction
