@@ -11,8 +11,9 @@ NC='\033[0m' # No Color
 
 # Configuration
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$BACKEND_DIR/.." && pwd)"
 MIGRATIONS_DIR="$BACKEND_DIR/migrations"
-DB_PATH="$BACKEND_DIR/db/specs.sqlite"
+DB_PATH="$PROJECT_ROOT/db/specs.sqlite"
 
 echo -e "${YELLOW}Specwork Database Migration Runner${NC}"
 echo "Backend directory: $BACKEND_DIR"

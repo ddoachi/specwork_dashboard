@@ -135,7 +135,7 @@ class MigrationRunner {
 
 // Main execution
 async function main() {
-  const databasePath = process.env.DB_PATH || 'db/specs.sqlite';
+  const databasePath = process.env.DB_PATH || '../db/specs.sqlite';
   const migrationsDir = process.argv[2] || __dirname;
 
   const runner = new MigrationRunner(databasePath, migrationsDir);

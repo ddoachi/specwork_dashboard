@@ -1,94 +1,21 @@
--- Migration 002: Migrate from Legacy Epic/Feature/Task Tables to Unified Specs
--- Handles data migration from separate entity tables to unified specs table
+-- Migration 002: Legacy Table Data Migration
+-- Migrates data from separate Epic/Feature/Task tables to unified specs table
+-- This migration is safe to run on databases without legacy tables
 
--- Check if legacy tables exist and migrate data
--- This migration is idempotent and can be run multiple times safely
+-- Note: This migration requires manual data migration for existing databases
+-- with legacy tables. The migration will skip if no legacy data exists.
 
--- Migrate epics to specs table
-INSERT OR IGNORE INTO specs (
-    id, hierarchical_id, title, type, status, priority, created, updated,
-    estimated_hours, actual_hours, context_file, effort, risk, commits, pull_requests
-)
-SELECT 
-    id,
-    epic_code as hierarchical_id,
-    title,
-    'epic' as type,
-    status,
-    priority,
-    created,
-    updated,
-    estimated_hours,
-    actual_hours,
-    context_file,
-    effort,
-    risk,
-    commits,
-    pull_requests
-FROM epics
-WHERE EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='epics');
+-- For databases with existing legacy tables (epics, features, tasks), 
+-- run the following SQL manually after verifying data structure:
 
--- Migrate features to specs table
-INSERT OR IGNORE INTO specs (
-    id, hierarchical_id, title, type, parent, status, priority, created, updated,
-    estimated_hours, actual_hours, context_file, effort, risk, commits, pull_requests
-)
-SELECT 
-    id,
-    feature_code as hierarchical_id,
-    title,
-    'feature' as type,
-    epic_code as parent,
-    status,
-    priority,
-    created,
-    updated,
-    estimated_hours,
-    actual_hours,
-    context_file,
-    effort,
-    risk,
-    commits,
-    pull_requests
-FROM features
-WHERE EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='features');
+-- INSERT OR IGNORE INTO specs (id, hierarchical_id, title, type, status, priority, created, updated, estimated_hours, actual_hours, context_file, effort, risk)
+-- SELECT id, epic_code, title, 'epic', status, priority, created, updated, estimated_hours, actual_hours, context_file, effort, risk FROM epics;
 
--- Migrate tasks to specs table
-INSERT OR IGNORE INTO specs (
-    id, hierarchical_id, title, type, parent, status, priority, created, updated,
-    estimated_hours, actual_hours, context_file, effort, risk, commits, pull_requests
-)
-SELECT 
-    id,
-    task_code as hierarchical_id,
-    title,
-    'task' as type,
-    feature_code as parent,
-    status,
-    priority,
-    created,
-    updated,
-    estimated_hours,
-    actual_hours,
-    context_file,
-    effort,
-    risk,
-    commits,
-    pull_requests
-FROM tasks
-WHERE EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks');
+-- INSERT OR IGNORE INTO specs (id, hierarchical_id, title, type, parent, status, priority, created, updated, estimated_hours, actual_hours, context_file, effort, risk) 
+-- SELECT id, feature_code, title, 'feature', epic_code, status, priority, created, updated, estimated_hours, actual_hours, context_file, effort, risk FROM features;
 
--- Update parent references to use hierarchical IDs instead of codes
-UPDATE specs 
-SET parent = (
-    SELECT s2.hierarchical_id 
-    FROM specs s2 
-    WHERE s2.hierarchical_id = specs.parent 
-    AND s2.type IN ('epic', 'feature')
-)
-WHERE parent IS NOT NULL;
+-- INSERT OR IGNORE INTO specs (id, hierarchical_id, title, type, parent, status, priority, created, updated, estimated_hours, actual_hours, context_file, effort, risk)
+-- SELECT id, task_code, title, 'task', feature_code, status, priority, created, updated, estimated_hours, actual_hours, context_file, effort, risk FROM tasks;
 
--- Drop legacy tables if they exist (commented out for safety)
--- DROP TABLE IF EXISTS epics;
--- DROP TABLE IF EXISTS features; 
--- DROP TABLE IF EXISTS tasks;
+-- This migration is a placeholder that can be safely run on any database
+SELECT 1 as migration_placeholder;
