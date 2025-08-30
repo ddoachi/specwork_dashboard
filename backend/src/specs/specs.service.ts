@@ -11,6 +11,62 @@ import { SpecRelation } from './spec-rel.entity';
 import { UpsertSpecDto } from './dto/upsert-spec.dto';
 import { BatchSyncDto } from './dto/batch-sync.dto';
 
+// Helper functions for hierarchical ID generation
+function generateHierarchicalId(specData: any, allSpecs: Record<string, any>): string {
+  if (specData.type === 'epic') {
+    return specData.id; // E01, E02, etc.
+  } else if (specData.type === 'feature' && specData.parent) {
+    return `${specData.parent}-${specData.id}`; // E01-F01, E01-F02, etc.
+  } else if (specData.type === 'task' && specData.parent) {
+    // Parent is feature ID, need to find epic
+    const parentFeature = allSpecs[specData.parent];
+    if (parentFeature?.parent) {
+      return `${parentFeature.parent}-${specData.parent}-${specData.id}`; // E01-F01-T01
+    }
+    return `${specData.parent}-${specData.id}`; // Fallback
+  } else if (specData.type === 'subtask' && specData.parent) {
+    // Parent is task ID, need to find feature and epic
+    const parentTask = allSpecs[specData.parent];
+    if (parentTask?.parent) {
+      const parentFeature = allSpecs[parentTask.parent];
+      if (parentFeature?.parent) {
+        return `${parentFeature.parent}-${parentTask.parent}-${specData.parent}-${specData.id}`; // E01-F01-T01-S01
+      }
+    }
+    return `${specData.parent}-${specData.id}`; // Fallback
+  }
+  
+  return specData.id; // Fallback to original ID
+}
+
+function generateParentHierarchicalId(specData: any, allSpecs: Record<string, any>): string | null {
+  if (!specData.parent) return null;
+  
+  const parentSpec = allSpecs[specData.parent];
+  if (!parentSpec) return specData.parent;
+  
+  return generateHierarchicalId(parentSpec, allSpecs);
+}
+
+function findEpicId(specData: any, allSpecs: Record<string, any>): string | null {
+  if (specData.type === 'epic') {
+    return specData.id;
+  } else if (specData.type === 'feature' && specData.parent) {
+    return specData.parent; // Parent of feature is epic
+  } else if (specData.type === 'task' && specData.parent) {
+    const parentFeature = allSpecs[specData.parent];
+    return parentFeature?.parent || null; // Epic is grandparent of task
+  } else if (specData.type === 'subtask' && specData.parent) {
+    const parentTask = allSpecs[specData.parent];
+    if (parentTask?.parent) {
+      const parentFeature = allSpecs[parentTask.parent];
+      return parentFeature?.parent || null; // Epic is great-grandparent of subtask
+    }
+  }
+  
+  return null;
+}
+
 @Injectable()
 export class SpecsService {
   constructor(
@@ -134,10 +190,14 @@ export class SpecsService {
       // Get all existing spec IDs for comparison
       const existingSpecs = await queryRunner.manager.find(Spec);
       const existingIds = new Set(existingSpecs.map(s => s.id));
-      const incomingIds = new Set(Object.keys(dto.specs));
+      
+      // Generate hierarchical IDs for all incoming specs
+      const incomingHierarchicalIds = new Set(
+        Object.values(dto.specs).map(specData => generateHierarchicalId(specData, dto.specs))
+      );
 
       // Determine specs to delete (exist in DB but not in sync data)
-      const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
+      const toDelete = [...existingIds].filter(id => !incomingHierarchicalIds.has(id));
       
       // Delete removed specs
       if (toDelete.length > 0) {
@@ -146,15 +206,16 @@ export class SpecsService {
 
       // Process each spec from the sync data
       for (const [specId, specData] of Object.entries(dto.specs)) {
+        // Generate hierarchical ID for uniqueness
+        const hierarchicalId = generateHierarchicalId(specData, dto.specs);
+        
         // Prepare spec entity
         const spec = {
-          id: specId,
+          id: hierarchicalId,
           title: specData.title,
           type: specData.type as any,
-          parent_id: specData.parent || null,
-          epic_id: specData.type === 'epic' ? specId : 
-                   specData.type === 'feature' ? specData.parent : 
-                   null, // For tasks, need to find the epic
+          parent_id: specData.parent ? generateParentHierarchicalId(specData, dto.specs) : null,
+          epic_id: findEpicId(specData, dto.specs),
           domain: null, // Can be extracted from spec metadata if needed
           status: (specData.status || 'draft') as any,
           priority: (specData.priority || 'medium') as any,
@@ -168,47 +229,39 @@ export class SpecsService {
           risk: null,
         };
 
-        // For tasks, find the epic ID through the parent feature
-        if (specData.type === 'task' && specData.parent) {
-          const parentFeature = dto.specs[specData.parent];
-          if (parentFeature?.parent) {
-            spec.epic_id = parentFeature.parent;
-          }
-        }
-
         // Upsert the spec
         await queryRunner.manager.save(Spec, spec);
 
-        // Clear and re-insert related data
+        // Clear and re-insert related data using hierarchical ID
         // Files
-        await queryRunner.manager.delete(SpecFile, { spec_id: specId });
+        await queryRunner.manager.delete(SpecFile, { spec_id: hierarchicalId });
         
         // Commits
-        await queryRunner.manager.delete(SpecCommit, { spec_id: specId });
+        await queryRunner.manager.delete(SpecCommit, { spec_id: hierarchicalId });
         if (specData.commits?.length) {
           const commits = specData.commits.map(sha => ({
-            spec_id: specId,
+            spec_id: hierarchicalId,
             sha
           }));
           await queryRunner.manager.save(SpecCommit, commits);
         }
 
         // Pull Requests
-        await queryRunner.manager.delete(SpecPR, { spec_id: specId });
+        await queryRunner.manager.delete(SpecPR, { spec_id: hierarchicalId });
         if (specData.pull_requests?.length) {
           const prs = specData.pull_requests.map(url => ({
-            spec_id: specId,
+            spec_id: hierarchicalId,
             url
           }));
           await queryRunner.manager.save(SpecPR, prs);
         }
 
         // Relations - we'll handle children as "blocks" relations
-        await queryRunner.manager.delete(SpecRelation, { from_id: specId });
+        await queryRunner.manager.delete(SpecRelation, { from_id: hierarchicalId });
         if (specData.children?.length) {
           const relations = specData.children.map(childId => ({
-            from_id: specId,
-            to_id: childId,
+            from_id: hierarchicalId,
+            to_id: generateHierarchicalId(dto.specs[childId], dto.specs), // Convert child ID to hierarchical
             rel_type: 'blocks' as const
           }));
           await queryRunner.manager.save(SpecRelation, relations);
@@ -221,7 +274,7 @@ export class SpecsService {
       // Return sync summary
       return {
         success: true,
-        synced: incomingIds.size,
+        synced: incomingHierarchicalIds.size,
         deleted: toDelete.length,
         stats: dto.stats,
         timestamp: new Date().toISOString()
