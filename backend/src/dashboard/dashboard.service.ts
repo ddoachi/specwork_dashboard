@@ -1,66 +1,46 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Epic } from '../specs/epic.entity';
-import { Feature } from '../specs/feature.entity';
-import { Task } from '../specs/task.entity';
+import { Spec } from '../specs/spec.entity';
 
 import { DashboardStatsDto, SpecTreeNodeDto, EpicProgressResponseDto, RecentActivityResponseDto, EpicProgressItemDto, RecentActivityItemDto } from './dto/dashboard.dto';
 
 @Injectable()
 export class DashboardService {
   constructor(
-    @InjectRepository(Epic)
-    private epicRepository: Repository<Epic>,
-    @InjectRepository(Feature)
-    private featureRepository: Repository<Feature>,
-    @InjectRepository(Task)
-    private taskRepository: Repository<Task>,
+    @InjectRepository(Spec)
+    private specRepository: Repository<Spec>,
   ) {}
 
   async getDashboardStats(): Promise<DashboardStatsDto> {
     // Get counts by type
-    const epicCount = await this.epicRepository.count();
-    const featureCount = await this.featureRepository.count();
-    const taskCount = await this.taskRepository.count();
+    const epicCount = await this.specRepository.count({ where: { type: 'epic' } });
+    const featureCount = await this.specRepository.count({ where: { type: 'feature' } });
+    const taskCount = await this.specRepository.count({ where: { type: 'task' } });
 
-    // Get counts by status across all types
-    const completedEpics = await this.epicRepository.count({ where: { status: 'done' } });
-    const completedFeatures = await this.featureRepository.count({ where: { status: 'done' } });
-    const completedTasks = await this.taskRepository.count({ where: { status: 'done' } });
-    const completed = completedEpics + completedFeatures + completedTasks;
-
-    const inProgressEpics = await this.epicRepository.count({ where: { status: 'in_progress' } });
-    const inProgressFeatures = await this.featureRepository.count({ where: { status: 'in_progress' } });
-    const inProgressTasks = await this.taskRepository.count({ where: { status: 'in_progress' } });
-    const inProgress = inProgressEpics + inProgressFeatures + inProgressTasks;
-
-    const blockedEpics = await this.epicRepository.count({ where: { status: 'blocked' } });
-    const blockedFeatures = await this.featureRepository.count({ where: { status: 'blocked' } });
-    const blockedTasks = await this.taskRepository.count({ where: { status: 'blocked' } });
-    const blocked = blockedEpics + blockedFeatures + blockedTasks;
+    // Get counts by status across all types  
+    const completed = await this.specRepository.count({ where: { status: 'completed' } });
+    const inProgress = await this.specRepository.count({ where: { status: 'draft' } }); // draft means in progress in our data
+    const blocked = await this.specRepository.count({ where: { status: 'blocked' } });
 
     // Calculate progress by epic
-    const epics = await this.epicRepository.find();
-    const progressByEpic: Record<string, { total: number; completed: number; percentage: number }> = {};
+    const epics = await this.specRepository.find({ where: { type: 'epic' } });
+    const progressByEpic: Record<string, { total: number; completed: number; percentage: number; title: string }> = {};
 
     for (const epic of epics) {
-      const epicFeatures = await this.featureRepository.find({
-        where: { epic_code: epic.epic_code }
-      });
-      const epicTasks = await this.taskRepository.find({
-        where: { epic_code: epic.epic_code }
-      });
+      const epicSpecs = await this.specRepository
+        .createQueryBuilder('spec')
+        .where('spec.hierarchical_id LIKE :pattern', { pattern: `${epic.hierarchical_id}%` })
+        .getMany();
 
-      const total = epicFeatures.length + epicTasks.length;
-      const completedFeatures = epicFeatures.filter(f => f.status === 'done').length;
-      const completedTasks = epicTasks.filter(t => t.status === 'done').length;
-      const completedItems = completedFeatures + completedTasks;
+      const total = epicSpecs.filter(s => s.type !== 'epic').length; // Exclude the epic itself
+      const completedItems = epicSpecs.filter(s => s.status === 'completed' && s.type !== 'epic').length;
 
-      progressByEpic[epic.epic_code] = {
+      progressByEpic[epic.hierarchical_id || epic.id] = {
         total,
         completed: completedItems,
-        percentage: total > 0 ? Math.round((completedItems / total) * 100) : 0
+        percentage: total > 0 ? Math.round((completedItems / total) * 100) : 0,
+        title: epic.title
       };
     }
 
@@ -78,28 +58,29 @@ export class DashboardService {
   }
 
   async getSpecTree(): Promise<SpecTreeNodeDto[]> {
-    const epics = await this.epicRepository.find({
-      order: { epic_code: 'ASC' }
+    const epics = await this.specRepository.find({
+      where: { type: 'epic' },
+      order: { hierarchical_id: 'ASC' }
     });
 
     const treeNodes: SpecTreeNodeDto[] = [];
 
     for (const epic of epics) {
-      const epicFeatures = await this.featureRepository.find({
-        where: { epic_code: epic.epic_code },
-        order: { feature_code: 'ASC' }
+      const epicFeatures = await this.specRepository.find({
+        where: { type: 'feature', parent: epic.hierarchical_id },
+        order: { hierarchical_id: 'ASC' }
       });
 
       const featureNodes: SpecTreeNodeDto[] = [];
 
       for (const feature of epicFeatures) {
-        const featureTasks = await this.taskRepository.find({
-          where: { feature_code: feature.feature_code },
-          order: { task_code: 'ASC' }
+        const featureTasks = await this.specRepository.find({
+          where: { type: 'task', parent: feature.hierarchical_id },
+          order: { hierarchical_id: 'ASC' }
         });
 
         const taskNodes: SpecTreeNodeDto[] = featureTasks.map(task => ({
-          id: task.task_code,
+          id: task.hierarchical_id || task.id,
           title: task.title,
           type: 'task' as const,
           status: task.status,
@@ -107,11 +88,11 @@ export class DashboardService {
 
         // Calculate feature progress
         const totalTasks = featureTasks.length;
-        const completedTasks = featureTasks.filter(t => t.status === 'done').length;
+        const completedTasks = featureTasks.filter(t => t.status === 'completed').length;
         const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
         featureNodes.push({
-          id: feature.feature_code,
+          id: feature.hierarchical_id || feature.id,
           title: feature.title,
           type: 'feature' as const,
           status: feature.status,
@@ -120,16 +101,19 @@ export class DashboardService {
         });
       }
 
-      // Calculate epic progress
-      const allTasks = await this.taskRepository.find({
-        where: { epic_code: epic.epic_code }
-      });
+      // Calculate epic progress - count all tasks under this epic
+      const allTasks = await this.specRepository
+        .createQueryBuilder('spec')
+        .where('spec.hierarchical_id LIKE :pattern', { pattern: `${epic.hierarchical_id}%` })
+        .andWhere('spec.type = :type', { type: 'task' })
+        .getMany();
+      
       const totalTasks = allTasks.length;
-      const completedTasks = allTasks.filter(t => t.status === 'done').length;
+      const completedTasks = allTasks.filter(t => t.status === 'completed').length;
       const epicProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       treeNodes.push({
-        id: epic.epic_code,
+        id: epic.hierarchical_id || epic.id,
         title: epic.title,
         type: 'epic' as const,
         status: epic.status,
@@ -142,22 +126,26 @@ export class DashboardService {
   }
 
   async getEpicProgress(): Promise<EpicProgressResponseDto> {
-    const epics = await this.epicRepository.find({
-      order: { epic_code: 'ASC' }
+    const epics = await this.specRepository.find({
+      where: { type: 'epic' },
+      order: { hierarchical_id: 'ASC' }
     });
 
     const epicProgress: EpicProgressItemDto[] = [];
 
     for (const epic of epics) {
-      const allTasks = await this.taskRepository.find({
-        where: { epic_code: epic.epic_code }
-      });
+      const allTasks = await this.specRepository
+        .createQueryBuilder('spec')
+        .where('spec.hierarchical_id LIKE :pattern', { pattern: `${epic.hierarchical_id}%` })
+        .andWhere('spec.type = :type', { type: 'task' })
+        .getMany();
+      
       const totalTasks = allTasks.length;
-      const completedTasks = allTasks.filter(t => t.status === 'done').length;
+      const completedTasks = allTasks.filter(t => t.status === 'completed').length;
       const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       epicProgress.push({
-        epicId: epic.epic_code,
+        epicId: epic.hierarchical_id || epic.id,
         title: epic.title,
         status: epic.status,
         progress,
@@ -172,30 +160,21 @@ export class DashboardService {
   }
 
   async getRecentActivity(): Promise<RecentActivityResponseDto> {
-    // Mock data for now - in a real app you'd track activity logs
-    const activities: RecentActivityItemDto[] = [
-      {
-        id: '1',
-        action: 'completed' as const,
-        specId: 'T1025',
-        specTitle: 'Design system foundation',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30 min ago
-      },
-      {
-        id: '2', 
-        action: 'updated' as const,
-        specId: 'F1002',
-        specTitle: 'User authentication system',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString() // 1 hour ago
-      },
-      {
-        id: '3',
-        action: 'created' as const, 
-        specId: 'T1026',
-        specTitle: 'API endpoint implementation',
-        timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString() // 2 hours ago
-      }
-    ];
+    // Get recently updated specs
+    const recentSpecs = await this.specRepository.find({
+      order: { updated: 'DESC' },
+      take: 10
+    });
+
+    const activities: RecentActivityItemDto[] = recentSpecs.map((spec, index) => ({
+      id: `${spec.id}-${index}`,
+      action: spec.status === 'completed' ? 'completed' as const : 
+             spec.status === 'in_progress' ? 'updated' as const : 
+             'created' as const,
+      specId: spec.hierarchical_id || spec.id,
+      specTitle: spec.title,
+      timestamp: new Date(spec.updated).toISOString()
+    }));
 
     return { data: activities };
   }

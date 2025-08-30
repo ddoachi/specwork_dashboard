@@ -1,60 +1,53 @@
-name: Sync Specs and Update Index
+name: Update Backend from JTS Index
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'specs/**/*.md'
+  repository_dispatch:
+    types: [index_updated]
   workflow_dispatch: # Manual trigger option
 
 jobs:
-  sync-specs:
+  sync-backend:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Need to push index.md updates
-      
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout specwork_dashboard
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+      
+      - name: Checkout JTS repository  
+        uses: actions/checkout@v4
+        with:
+          repository: ddoachi/jts
+          path: jts-repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'yarn'
           
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
         
-      - name: Parse all spec files
-        id: parse
+      - name: Parse JTS index.md and extract data
         run: |
-          npm run parse:specs
-          echo "specs_data=$(cat specs-data.json)" >> $GITHUB_OUTPUT
+          echo "Processing updated index.md from JTS repository..."
+          echo "JTS commit: ${{ github.event.client_payload.commit }}"
+          echo "Timestamp: ${{ github.event.client_payload.timestamp }}"
           
-      - name: Update database
+          # Copy JTS specs data for processing
+          cp -r jts-repo/specs ./jts-specs
+          
+          # Parse the JTS specs to generate data for our backend
+          yarn run parse:specs -- --source=jts-specs
+          
+      - name: Update backend database
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           API_URL: ${{ secrets.API_URL }}
           SYNC_API_KEY: ${{ secrets.SYNC_API_KEY }}
         run: |
-          npm run sync:database
-          
-      - name: Generate index.md
-        run: |
-          npm run generate:index
-          
-      - name: Commit index.md if changed
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          if git diff --quiet specs/index.md; then
-            echo "No changes to index.md"
-          else
-            git add specs/index.md
-            git commit -m "Auto-update index.md with latest spec statistics [skip ci]"
-            git push
-          fi
+          echo "Syncing JTS spec data to specwork_dashboard backend..."
+          yarn run sync:database

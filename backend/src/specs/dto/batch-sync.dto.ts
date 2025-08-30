@@ -1,7 +1,8 @@
 export interface SpecMetadata {
   id: string;
+  hierarchical_id: string;
   title: string;
-  type: 'epic' | 'feature' | 'task';
+  type: 'epic' | 'feature' | 'task' | 'subtask';
   parent?: string;
   status: string;
   priority: string;
@@ -20,6 +21,7 @@ export class BatchSyncDto {
     total_epics: number;
     total_features: number;
     total_tasks: number;
+    total_subtasks: number;
     completed: string[];
     in_progress: string[];
     draft: string[];

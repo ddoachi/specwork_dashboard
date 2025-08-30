@@ -2,17 +2,14 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardController, SpecsController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
-import { SpecSyncService } from '../specs/spec-sync.service';
-import { Epic } from '../specs/epic.entity';
-import { Feature } from '../specs/feature.entity';
-import { Task } from '../specs/task.entity';
+import { Spec } from '../specs/spec.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Epic, Feature, Task]),
+    TypeOrmModule.forFeature([Spec]),
   ],
   controllers: [DashboardController, SpecsController],
-  providers: [DashboardService, SpecSyncService],
-  exports: [DashboardService, SpecSyncService],
+  providers: [DashboardService],
+  exports: [DashboardService],
 })
 export class DashboardModule {}
