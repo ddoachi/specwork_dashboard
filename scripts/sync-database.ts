@@ -11,7 +11,7 @@ async function syncDatabase() {
   try {
     // Batch update all specs
     const response = await axios.post(
-      `${apiUrl}/api/specs/batch-sync`,
+      `${apiUrl}/specs/batch-sync`,
       specData,
       {
         headers: {

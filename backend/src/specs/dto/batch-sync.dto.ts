@@ -8,11 +8,11 @@ export interface SpecMetadata {
   priority: string;
   created: string;
   updated: string;
-  children?: string[];
-  estimated_hours?: number;
-  actual_hours?: number;
+  children?: string[] | any[];  // Allow array of strings or markdown links
+  estimated_hours?: number | string;  // Allow both number and string
+  actual_hours?: number | string;  // Allow both number and string
   pull_requests?: string[];
-  commits?: string[];
+  commits?: string[] | any[];  // Allow string array or object array
 }
 
 export class BatchSyncDto {

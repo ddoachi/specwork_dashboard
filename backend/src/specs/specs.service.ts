@@ -17,6 +17,49 @@ function parseHierarchicalId(hierarchicalId: string): { epic?: string; feature?:
   return result;
 }
 
+// Extract ID from markdown link format [ID](path) or return as-is
+function extractIdFromMarkdownLink(value: string | undefined | null): string | null {
+  if (!value) return null;
+  // Check if it's a markdown link format
+  const match = value.match(/^\[([^\]]+)\]/);
+  return match ? match[1] : value;
+}
+
+// Normalize children array (extract IDs from markdown links)
+function normalizeChildren(children: any[] | undefined): string[] {
+  if (!children) return [];
+  return children.map(child => {
+    if (typeof child === 'string') {
+      const extracted = extractIdFromMarkdownLink(child);
+      return extracted || child;
+    }
+    return child;
+  }).filter(Boolean);
+}
+
+// Parse hours to number (handle string or number input)
+function parseHours(value: any): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+// Normalize commits array (handle both string and object formats)
+function normalizeCommits(commits: any[] | undefined): string[] {
+  if (!commits) return [];
+  return commits.map(commit => {
+    if (typeof commit === 'string') return commit;
+    // Handle object format { hash: 'abc123', text: 'commit message' }
+    if (typeof commit === 'object' && commit !== null) {
+      return commit.hash || commit.text || '';
+    }
+    return '';
+  }).filter(Boolean);
+}
+
 @Injectable()
 export class SpecsService {
   constructor(
@@ -29,7 +72,7 @@ export class SpecsService {
       hierarchical_id: dto.hierarchical_id,
       title: dto.title,
       type: dto.type,
-      parent: dto.parent ?? null,
+      parent: extractIdFromMarkdownLink(dto.parent) ?? null,
       status: dto.status,
       priority: dto.priority,
       created: dto.created,
@@ -39,8 +82,8 @@ export class SpecsService {
       context_file: dto.context_file ?? null,
       effort: dto.effort ?? null,
       risk: dto.risk ?? null,
-      children: dto.children ?? [],
-      commits: dto.commits ?? [],
+      children: normalizeChildren(dto.children),
+      commits: normalizeCommits(dto.commits),
       pull_requests: dto.pull_requests ?? [],
     });
     
@@ -115,24 +158,24 @@ export class SpecsService {
           where: { hierarchical_id: specData.hierarchical_id } 
         });
 
-        // Prepare spec entity
+        // Prepare spec entity with normalized data
         const spec = {
           id: specData.id,
           hierarchical_id: specData.hierarchical_id,
           title: specData.title,
           type: specData.type as any,
-          parent: specData.parent || null,
+          parent: extractIdFromMarkdownLink(specData.parent),
           status: (specData.status || 'draft') as any,
           priority: (specData.priority || 'medium') as any,
           created: specData.created,
           updated: specData.updated,
-          estimated_hours: specData.estimated_hours || 0,
-          actual_hours: specData.actual_hours || 0,
+          estimated_hours: parseHours(specData.estimated_hours),
+          actual_hours: parseHours(specData.actual_hours),
           context_file: null,
           effort: null,
           risk: null,
-          children: specData.children || [],
-          commits: specData.commits || [],
+          children: normalizeChildren(specData.children),
+          commits: normalizeCommits(specData.commits),
           pull_requests: specData.pull_requests || [],
         };
 
