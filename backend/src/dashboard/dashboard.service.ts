@@ -160,7 +160,58 @@ export class DashboardService {
   }
 
   async getRecentActivity(): Promise<RecentActivityResponseDto> {
-    // Get recently updated specs
+    // First, try to get activities from the spec_activities table
+    try {
+      const queryRunner = this.specRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      
+      const activities = await queryRunner.query(`
+        SELECT 
+          id,
+          spec_id,
+          hierarchical_id,
+          activity_type,
+          title,
+          description,
+          content_preview,
+          metadata,
+          spec_path,
+          context_path,
+          created_at,
+          spec_snapshot
+        FROM spec_activities
+        ORDER BY created_at DESC
+        LIMIT 20
+      `);
+      
+      await queryRunner.release();
+
+      if (activities && activities.length > 0) {
+        // Return rich activity data
+        const richActivities: RecentActivityItemDto[] = activities.map((activity: any) => ({
+          id: `activity-${activity.id}`,
+          action: this.mapActivityTypeToAction(activity.activity_type),
+          specId: activity.hierarchical_id || activity.spec_id,
+          specTitle: activity.description || activity.title,
+          timestamp: new Date(activity.created_at).toISOString(),
+          // Extended fields for rich activities
+          activityType: activity.activity_type,
+          title: activity.title,
+          description: activity.description,
+          contentPreview: activity.content_preview,
+          specPath: activity.spec_path,
+          contextPath: activity.context_path,
+          metadata: activity.metadata ? JSON.parse(activity.metadata) : null
+        }));
+
+        return { data: richActivities };
+      }
+    } catch (error) {
+      // If spec_activities table doesn't exist, fall back to basic implementation
+      console.log('Using fallback activity generation (spec_activities table not found)');
+    }
+
+    // Fallback: Get recently updated specs (original implementation)
     const recentSpecs = await this.specRepository.find({
       order: { updated: 'DESC' },
       take: 10
@@ -177,5 +228,18 @@ export class DashboardService {
     }));
 
     return { data: activities };
+  }
+
+  private mapActivityTypeToAction(activityType: string): 'created' | 'updated' | 'completed' | 'blocked' {
+    switch (activityType) {
+      case 'spec_created':
+        return 'created';
+      case 'spec_implemented':
+        return 'completed';
+      case 'spec_blocked':
+        return 'blocked';
+      default:
+        return 'updated';
+    }
   }
 }
