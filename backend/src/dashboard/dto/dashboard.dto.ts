@@ -104,8 +104,8 @@ export class RecentActivityItemDto {
   @ApiProperty({ description: 'Activity ID' })
   id: string;
 
-  @ApiProperty({ description: 'Action type', enum: ['completed', 'updated', 'created'] })
-  action: 'completed' | 'updated' | 'created';
+  @ApiProperty({ description: 'Action type', enum: ['completed', 'updated', 'created', 'blocked'] })
+  action: 'completed' | 'updated' | 'created' | 'blocked';
 
   @ApiProperty({ description: 'Specification ID' })
   specId: string;
@@ -115,6 +115,28 @@ export class RecentActivityItemDto {
 
   @ApiProperty({ description: 'Timestamp in ISO format' })
   timestamp: string;
+
+  // Extended fields for rich activities
+  @ApiProperty({ description: 'Detailed activity type', required: false })
+  activityType?: string;
+
+  @ApiProperty({ description: 'Activity title', required: false })
+  title?: string;
+
+  @ApiProperty({ description: 'Detailed activity description', required: false })
+  description?: string;
+
+  @ApiProperty({ description: 'Preview of spec/context content', required: false })
+  contentPreview?: string;
+
+  @ApiProperty({ description: 'Path to spec.md file', required: false })
+  specPath?: string;
+
+  @ApiProperty({ description: 'Path to context.md file', required: false })
+  contextPath?: string;
+
+  @ApiProperty({ description: 'Additional metadata', required: false })
+  metadata?: any;
 }
 
 export class RecentActivityResponseDto {
