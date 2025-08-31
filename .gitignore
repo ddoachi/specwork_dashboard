@@ -49,7 +49,6 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/*
 !.vscode/extensions.json
 *.swp
 *.swo
@@ -82,10 +81,6 @@ db/specs.sqlite
 # Generated data files
 specs-data.json
 activity-data.json
-
-# Screenshots
-screenshot_*.png
-*.png
 
 # Database files
 *.sqlite
