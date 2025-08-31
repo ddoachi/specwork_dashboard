@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as fs from 'fs';
 
 async function syncDatabase() {
-  const specData = JSON.parse(fs.readFileSync('specs-data.json', 'utf-8'));
+  const specData = JSON.parse(fs.readFileSync('./specs-data.json', 'utf-8'));
   
   // Get API URL from environment or use localhost for development
   const apiUrl = process.env.API_URL || 'http://localhost:3001';

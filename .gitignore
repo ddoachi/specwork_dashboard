@@ -82,10 +82,6 @@ db/specs.sqlite
 specs-data.json
 activity-data.json
 
-# Screenshots
-screenshot_*.png
-*.png
-
 # Database files
 *.sqlite
 *.sqlite3

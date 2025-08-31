@@ -143,6 +143,21 @@ export class SpecsService {
         Object.values(dto.specs).map(specData => specData.hierarchical_id).filter(Boolean)
       );
 
+      // Build a map of short IDs to hierarchical IDs for parent resolution
+      const idToHierarchicalId = new Map<string, string>();
+      for (const specData of Object.values(dto.specs)) {
+        if (specData.hierarchical_id) {
+          // Map the base ID (e.g., "F01") to full hierarchical ID (e.g., "E01-F01")
+          const parts = specData.hierarchical_id.split('-');
+          if (parts.length > 0) {
+            const lastPart = parts[parts.length - 1];
+            idToHierarchicalId.set(lastPart, specData.hierarchical_id);
+          }
+          // Also map the full ID
+          idToHierarchicalId.set(specData.id, specData.hierarchical_id);
+        }
+      }
+
       // Determine specs to delete (exist in DB but not in sync data)
       const toDelete = [...existingHierarchicalIds].filter(id => id && !incomingHierarchicalIds.has(id));
       
@@ -158,13 +173,34 @@ export class SpecsService {
           where: { hierarchical_id: specData.hierarchical_id } 
         });
 
+        // Resolve parent to full hierarchical ID
+        let resolvedParent = extractIdFromMarkdownLink(specData.parent);
+        if (resolvedParent) {
+          // Check if the parent needs to be resolved to a full hierarchical ID
+          // For example, if parent is "F01", resolve it to "E01-F01"
+          if (idToHierarchicalId.has(resolvedParent)) {
+            resolvedParent = idToHierarchicalId.get(resolvedParent) || resolvedParent;
+          } else if (specData.hierarchical_id) {
+            // If parent is not in the map, try to construct it from the current hierarchical_id
+            // E.g., if current is "E01-F01-T01" and parent is "F01", resolve to "E01-F01"
+            const currentParts = specData.hierarchical_id.split('-');
+            if (currentParts.length > 1) {
+              // Remove the last part to get the parent hierarchical ID
+              const parentHierarchical = currentParts.slice(0, -1).join('-');
+              if (parentHierarchical.endsWith(resolvedParent)) {
+                resolvedParent = parentHierarchical;
+              }
+            }
+          }
+        }
+
         // Prepare spec entity with normalized data
         const spec = {
           id: specData.id,
           hierarchical_id: specData.hierarchical_id,
           title: specData.title,
           type: specData.type as any,
-          parent: extractIdFromMarkdownLink(specData.parent),
+          parent: resolvedParent,
           status: (specData.status || 'draft') as any,
           priority: (specData.priority || 'medium') as any,
           created: specData.created,
