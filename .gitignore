@@ -78,3 +78,20 @@ specs/*
 specs.sqlite*
 backend/db/specs.sqlite
 db/specs.sqlite
+
+# Generated data files
+specs-data.json
+activity-data.json
+
+# Screenshots
+screenshot_*.png
+*.png
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Accidental files
+tatus*
+*porcelain*
