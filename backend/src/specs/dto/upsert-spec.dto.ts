@@ -22,7 +22,7 @@ export class UpsertSpecDto {
   @IsOptional() @IsIn(['tiny','small','medium','large','xl']) effort?: 'tiny'|'small'|'medium'|'large'|'xl';
   @IsOptional() @IsIn(['low','medium','high']) risk?: 'low'|'medium'|'high';
 
-  @IsOptional() @IsArray() children?: string[];
-  @IsOptional() @IsArray() commits?: string[];
+  @IsOptional() @IsArray() children?: string[] | any[];
+  @IsOptional() @IsArray() commits?: string[] | any[];
   @IsOptional() @IsArray() pull_requests?: string[];
 }
