@@ -73,7 +73,6 @@ docker-compose.override.yml
 *.bak
 *.tmp
 *.orig
-specs/*
 specs.sqlite*
 backend/db/specs.sqlite
 db/specs.sqlite
