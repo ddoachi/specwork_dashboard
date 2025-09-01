@@ -79,7 +79,6 @@ backend/db/specs.sqlite
 db/specs.sqlite
 
 # Generated data files
-specs-data.json
 activity-data.json
 
 # Database files
